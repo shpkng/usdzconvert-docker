@@ -89,12 +89,21 @@ RUN true \
 
 RUN python -m pip install --upgrade pip
 RUN python -m pip install numpy
+RUN python -m pip install boto3
+RUN python -m pip install awslambdaric
+RUN rm  -rf /var/tmp && ln -s /tmp /var/tmp
 
 COPY usdzconvert /home/usdzconvert
 RUN chmod 755 /home/usdzconvert/usdzconvert
+
 COPY --from=build /usr/local/usd /usr/local/usd
 ARG USD_INSTALL="/usr/local/usd"
 ENV PYTHONPATH="${PYTHONPATH}:${USD_INSTALL}/lib/python"
 ENV PATH="${PATH}:${USD_INSTALL}/bin"
 
-ENTRYPOINT [ "/home/usdzconvert/usdzconvert" ]
+# Set runtime interface client as default command for the container runtime
+ENTRYPOINT [ "python", "-m", "awslambdaric" ]
+
+WORKDIR /home/usdzconvert
+# Pass the name of the function handler as an argument to the runtime
+CMD [ "lambda.handler" ]
