@@ -1,0 +1,35 @@
+FROM python:3.7.17-slim
+
+ARG CMAKE_VER=v3.14.6
+
+RUN apt-get -qq update && apt-get install -y && apt-get install -y \
+    git build-essential nasm zlib1g-dev sudo \
+    libssl-dev libffi-dev libxrandr-dev libxcursor-dev libxinerama-dev libxi-dev libxt-dev libgl-dev libgl1-mesa-dev libegl1-mesa-dev
+
+#install cmake
+WORKDIR /home/tmp/cmake
+RUN git clone --branch "${CMAKE_VER}" --depth 1 https://github.com/Kitware/CMake/
+WORKDIR /home/tmp/cmake/CMake
+RUN ./bootstrap && make && sudo make install
+RUN rm -rf "/home/tmp/cmake"
+
+
+# Configuration
+ARG USD_INSTALL="/home/usd"
+ENV PYTHONPATH="${PYTHONPATH}:${USD_INSTALL}/lib/python"
+ENV PATH="${PATH}:${USD_INSTALL}/bin"
+
+WORKDIR /home/src/usd
+
+# Build + install USD
+RUN git clone https://github.com/shpkng/OpenUSD.git /home/src/usd
+# install USD
+RUN python ./build_scripts/build_usd.py --no-examples --no-tutorials --no-imaging --no-usdview --no-draco "${USD_INSTALL}"
+RUN pip install numpy
+RUN rm -rf "${USD_REPO}" "${USD_INSTALL}/build" "${USD_INSTALL}/src"
+RUN rm -rf "${USD_INSTALL}/build" "${USD_INSTALL}/src"
+
+COPY usdzconvert /home/usdzconvert
+RUN chmod 755 /home/usdzconvert/usdzconvert
+
+ENTRYPOINT [ "/home/usdzconvert/usdzconvert" ]
